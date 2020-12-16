@@ -1,0 +1,7 @@
+pandas
+matplotlib
+seaborn
+tqdm
+jupyter
+jupyter_contrib_nbextensions
+jupyter_nbextensions_configurator
