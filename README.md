@@ -1,7 +1,8 @@
 # Contents
 
  - `data` - Data used in the project
- - `env` - Files required for setting up the environment
+ - `env` - Files required for setting up the environment. Includes instuctions for setting up the environment.
+ - `research` - Files related to data exploration, mostly notebooks
  - `src` - Source files used throughout the code
  - `conf.py` - Configuration file for the project
 
