@@ -1,6 +1,7 @@
 from typing import Optional
 
 import numpy as np
+import tensorflow as tf
 from sklearn.base import BaseEstimator, ClassifierMixin
 from sklearn.utils.validation import check_X_y, check_array, check_is_fitted
 
@@ -62,6 +63,10 @@ class TransProb(BaseEstimator, ClassifierMixin):
      - `y` (``np.ndarray``): Destination City IDs - should be encoded (numbers from 0 onwards)
     """
 
+    def __init__(self, top_n: int = 1):
+
+        self.top_n = top_n
+
     def fit(self, X: np.ndarray, y: Optional[np.ndarray] = None) -> 'TransProb':
         """
 
@@ -83,7 +88,7 @@ class TransProb(BaseEstimator, ClassifierMixin):
                                                                      target=y,
                                                                      fill_untraveled_with_prior=True)
 
-        # Calculate prediction table
+        # Calculate prediction table, element[i, j] is the jth moth probable city to travel to from i
         # noinspection PyAttributeOutsideInit
         self.prediction_table_ = np.argsort(-self._transition_matrix, axis=1)
 
@@ -98,9 +103,20 @@ class TransProb(BaseEstimator, ClassifierMixin):
         X = check_array(X, ensure_2d=False)
 
         try:
-            return self.prediction_table_[X, :]
+            if self.top_n == 1:
+                predicted_labels = self.prediction_table_[X, 0]
+            else:
+                predicted_labels = self.prediction_table_[X, :self.top_n]
         except IndexError:
             raise ValueError('X must be encoded from 0 onwards.')
+
+        # One hot
+        if self.top_n == 1:  # Predicts top 1
+            return tf.one_hot(predicted_labels, depth=self.prediction_table_.shape[1]).numpy()
+        else:  # Predicts top N > 1
+            return np.max(  # np.max will make the one_hot able to return multi label output
+                tf.one_hot(predicted_labels, depth=self.prediction_table_.shape[1]).numpy(),
+                axis=1)
 
     def predict_proba(self, X) -> np.ndarray:
         # Check is fit had been called
