@@ -61,7 +61,13 @@ def test_trans_prob_model_predictions():
     result = model.predict([0, 1, 2])
 
     # Validate predictions
-    assert np.all(result[:, 0].flatten() == np.array([1, 3, 1]))  # Last value is 1 because of prior!
-    assert np.all(result == np.array([[1, 2, 0, 3],
-                                      [3, 0, 1, 2],
-                                      [1, 2, 3, 0]]))
+    assert np.all(result == np.array([[0, 1, 0, 0],
+                                      [0, 0, 0, 1],
+                                      [0, 1, 0, 0]]))  # Last value is 1 because of prior!
+
+    # Predict top 2
+    model.top_n = 2
+    result = model.predict([0, 1, 2])
+    assert np.all(result == np.array([[0, 1, 1, 0],
+                                      [1, 0, 0, 1],
+                                      [0, 1, 1, 0]]))

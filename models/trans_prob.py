@@ -1,9 +1,11 @@
 from typing import Optional
 
 import numpy as np
+import pandas as pd
 import tensorflow as tf
-from sklearn.base import BaseEstimator, ClassifierMixin
-from sklearn.utils.validation import check_X_y, check_array, check_is_fitted
+from sklearn.base import BaseEstimator, ClassifierMixin, TransformerMixin
+from sklearn.pipeline import Pipeline
+from sklearn.utils.validation import check_X_y, check_is_fitted
 
 
 def calculate_transition_probabilities(size: int,
@@ -50,7 +52,7 @@ def calculate_transition_probabilities(size: int,
     return transition_matrix
 
 
-# noinspection PyAttributeOutsideInit
+# noinspection PyAttributeOutsideInit,PyPep8Naming
 class TransProb(BaseEstimator, ClassifierMixin):
     """
     Transition probability model.
@@ -63,9 +65,15 @@ class TransProb(BaseEstimator, ClassifierMixin):
      - `y` (``np.ndarray``): Destination City IDs - should be encoded (numbers from 0 onwards)
     """
 
-    def __init__(self, top_n: int = 1):
+    def __init__(self, n_cities: int, top_n: int = 1):
+        """
+
+        :param n_cities: Number of cities in the data
+        :param top_n: Top N to predict by default
+        """
 
         self.top_n = top_n
+        self.n_cities = n_cities
 
     def fit(self, X: np.ndarray, y: Optional[np.ndarray] = None) -> 'TransProb':
         """
@@ -83,7 +91,7 @@ class TransProb(BaseEstimator, ClassifierMixin):
         # * Transition matrix will hold the transition probability between each source to target.
         # * In case where the source has never been traveled from (all zero row) it will be assigned the prior
         # * of the target
-        self._transition_matrix = calculate_transition_probabilities(size=len(set(X.flatten()).union(y.flatten())),
+        self._transition_matrix = calculate_transition_probabilities(size=self.n_cities,
                                                                      source=X,
                                                                      target=y,
                                                                      fill_untraveled_with_prior=True)
@@ -94,13 +102,11 @@ class TransProb(BaseEstimator, ClassifierMixin):
 
         return self
 
-    def predict(self, X) -> np.ndarray:
+    def predict(self, X: np.ndarray) -> np.ndarray:
         # Check is fit had been called
         check_is_fitted(self)
 
-        # Input validation
-        # noinspection PyPep8Naming
-        X = check_array(X, ensure_2d=False)
+        X = X.flatten()
 
         try:
             if self.top_n == 1:
@@ -123,10 +129,49 @@ class TransProb(BaseEstimator, ClassifierMixin):
         check_is_fitted(self)
 
         # Input validation
-        # noinspection PyPep8Naming
-        X = check_array(X, ensure_2d=False)
+        X = X.flatten()
 
         try:
             return self._transition_matrix[X, :]
         except IndexError:
             raise ValueError('X must be encoded from 0 onwards.')
+
+
+class ModelingTable(TransformerMixin, BaseEstimator):
+    """
+    Takes in raw data and discards of irrelevant features
+
+    Transforms into numpy array with only the relevant features
+    """
+
+    # noinspection PyUnusedLocal
+    def fit(self, X, y=None):
+        return self
+
+    # noinspection PyPep8Naming,PyMethodMayBeStatic
+    def transform(self, X):
+        # X already excludes the last city of each trip
+
+        # Extract only relevant rows of city_id - the last of each trip
+        X = X.groupby('utrip_id').tail(1)['city_id'].values
+
+        return X
+
+
+def fit_pipeline(features: pd.DataFrame, labels: pd.DataFrame) -> Pipeline:
+    """
+    Create and fit pipeline
+
+    :param features: Features, should include the entire raw data format, cities already encoded
+    :param labels: Labels, should include only 'utrip_id' and 'city_id' columns with already encoded cities
+    :return: Fitted pipeline
+    """
+
+    # Build pipeline
+    n_cities = features['city_id'].nunique() + 1  # +1 for unknown city
+    pipeline = Pipeline([('modeling_table', ModelingTable()),
+                         ('trans_prob', TransProb(n_cities=n_cities))])
+    # Fit
+    pipeline.fit(features, labels['city_id'].values)
+
+    return pipeline
