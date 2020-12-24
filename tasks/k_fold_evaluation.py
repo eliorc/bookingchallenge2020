@@ -59,6 +59,7 @@ def main():
     seed(ARGS.random_seed)
     logger = task.get_logger()
     results = defaultdict(list)
+    fitting_method = models_io.get_fitting_method(ARGS.model)
 
     # Load data
     raw_data = data_io.load_raw_data(data_dir=root_data_dir)
@@ -99,7 +100,6 @@ def main():
         test_y.loc[:, 'city_id'] = city_encoder.transform(test_y['city_id'])
 
         # Train
-        fitting_method = models_io.get_fitting_method(ARGS.model)
         model = fitting_method(features=train_x, labels=train_y)
 
         # Evaluate Top N accuracy, N ∈ {1, 4, 10, 50}
@@ -108,7 +108,6 @@ def main():
                              artifact_object=probabilities,
                              metadata={'test_utrips': test_y['utrip_id'].tolist()})
         y_true = tf.one_hot(test_y['city_id'].values, depth=len(city_encoder.classes_))
-        results = dict()
         for n in [1, 4, 10, 50]:
             model.steps[-1][-1].top_n = n
 
