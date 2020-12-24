@@ -7,8 +7,8 @@ import numpy as np
 import pandas as pd
 import tensorflow as tf
 from sklearn.preprocessing import LabelEncoder
-from trains import Task
 from tqdm import tqdm
+from trains import Task
 
 import conf
 from models import io as models_io
@@ -60,6 +60,7 @@ def main():
     seed(ARGS.random_seed)
     logger = task.get_logger()
     results = defaultdict(list)
+    true_ranks = defaultdict(list)
     fitting_method = models_io.get_fitting_method(ARGS.model)
 
     # Load data
@@ -72,7 +73,8 @@ def main():
     # Iterate over K folds
     all_trip_ids = raw_data.utrip_id.unique()
     shuffle(all_trip_ids)  # will reproduce because of explicit random seed settings
-    for k_fold, test_trips in tqdm(enumerate(np.array_split(all_trip_ids, ARGS.k_folds)), desc=f'Folds'):
+    for k_fold, test_trips in tqdm(enumerate(np.array_split(all_trip_ids, ARGS.k_folds)), desc=f'Folds',
+                                   total=ARGS.k_folds):
         # Split to train / test
         train = raw_data[~raw_data.utrip_id.isin(test_trips)].copy()
         test = raw_data[raw_data.utrip_id.isin(test_trips)].copy()
@@ -122,15 +124,25 @@ def main():
                                  iteration=n,
                                  value=top_n_accuracy)
 
+        # Gather rank of true label for later analysis
+        true_ranks['true_label_rank'].extend(np.where(np.argsort(-probabilities, axis=1) ==
+                                                      test_y.city_id.values.reshape(-1, 1))[1])
+        true_ranks['utrip_id'].extend(test_y['utrip_id'].tolist())
+
     # Report metrics
     results = pd.DataFrame(results,
                            index=np.arange(ARGS.k_folds) + 1)
     results.index.name = "Fold"
+    true_ranks = pd.DataFrame(true_ranks)
+
     logger.report_table(title='Top K Accuracy Per Fold',
                         series=ARGS.model,
                         iteration=0,
                         table_plot=results)
-
+    logger.report_table(title='True Label Ranks',
+                        series=ARGS.model,
+                        iteration=0,
+                        table_plot=true_ranks)
     logger.report_scalar(title='Mean Top 4 Accuracy',
                          series=ARGS.model,
                          iteration=0,
