@@ -8,6 +8,7 @@ import pandas as pd
 import tensorflow as tf
 from sklearn.preprocessing import LabelEncoder
 from trains import Task
+from tqdm import tqdm
 
 import conf
 from models import io as models_io
@@ -71,7 +72,7 @@ def main():
     # Iterate over K folds
     all_trip_ids = raw_data.utrip_id.unique()
     shuffle(all_trip_ids)  # will reproduce because of explicit random seed settings
-    for k_fold, test_trips in enumerate(np.array_split(all_trip_ids, ARGS.k_folds)):
+    for k_fold, test_trips in tqdm(enumerate(np.array_split(all_trip_ids, ARGS.k_folds)), desc=f'Folds'):
         # Split to train / test
         train = raw_data[~raw_data.utrip_id.isin(test_trips)].copy()
         test = raw_data[raw_data.utrip_id.isin(test_trips)].copy()
@@ -133,7 +134,7 @@ def main():
     logger.report_scalar(title='Mean Top 4 Accuracy',
                          series=ARGS.model,
                          iteration=0,
-                         value=results['top_4_accuracy'].mean())
+                         value=results['top_4_acc'].mean())
 
 
 if __name__ == '__main__':
