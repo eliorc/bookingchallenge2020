@@ -1,4 +1,4 @@
-from typing import Optional
+from typing import Optional, Tuple
 
 import numpy as np
 import pandas as pd
@@ -11,15 +11,16 @@ from sklearn.utils.validation import check_X_y, check_is_fitted
 def calculate_transition_probabilities(size: int,
                                        source: np.ndarray,
                                        target: np.ndarray,
-                                       fill_untraveled_with_prior: bool = False) -> np.ndarray:
+                                       return_destination_prior: bool = False) -> Tuple[np.ndarray,
+                                                                                        Optional[np.ndarray]]:
     """
     Calculate transition probabilities between sources and targets
 
     :param size: Size of each dimension of the transition probability matrix
     :param source: Sources - should be encoded (numbers from 0 onwards)
     :param target: Targets - should be encoded (numbers from 0 onwards)
-    :param fill_untraveled_with_prior: Fill sources which never been traveled from with prior of targets' travels
-    :return: Transition probability matrix
+    :param return_destination_prior: Return prior probability of destination travel
+    :return: Transition probability matrix, and optionally destination prior vector
     """
 
     # Prerequisites
@@ -28,14 +29,14 @@ def calculate_transition_probabilities(size: int,
     # Init transition matrix
     transition_matrix = np.zeros(shape=(size, size), dtype=float)
 
-    # Fill matrix
+    # Fill matrix with counts
     try:
         for source_, target_ in zip(source.flatten(), target.flatten()):
             transition_matrix[source_, target_] += 1
     except IndexError:
         raise ValueError('Sources and targets must be encoded from 0 onwards.')
 
-    if fill_untraveled_with_prior:
+    if return_destination_prior:
         target_prior = np.sum(transition_matrix, axis=0)
         target_prior /= np.sum(target_prior)
 
@@ -43,13 +44,9 @@ def calculate_transition_probabilities(size: int,
     n_transitions = transition_matrix.sum(axis=1)
     with np.errstate(divide='ignore', invalid='ignore'):  # Ignore division by 0
         transition_matrix /= np.reshape(n_transitions, newshape=(-1, 1))
-
     transition_matrix = np.nan_to_num(transition_matrix)
 
-    if fill_untraveled_with_prior:
-        transition_matrix[~np.sum(transition_matrix, axis=1).astype(bool), :] = target_prior
-
-    return transition_matrix
+    return transition_matrix, target_prior
 
 
 # noinspection PyAttributeOutsideInit,PyPep8Naming
@@ -89,16 +86,25 @@ class TransProb(BaseEstimator, ClassifierMixin):
 
         # Calculate transition matrix
         # * Transition matrix will hold the transition probability between each source to target.
-        # * In case where the source has never been traveled from (all zero row) it will be assigned the prior
-        # * of the target
-        self._transition_matrix = calculate_transition_probabilities(size=self.n_cities,
-                                                                     source=X,
-                                                                     target=y,
-                                                                     fill_untraveled_with_prior=True)
+        # * Zero elements in the matrix will be filled using the prior of targets in a manner where the filled elements
+        # * are all smaller than the true probabilities. This will be done by giving them negative values
+        # * 1-(prior probability) resulting in a matrix where in each row the highest elements are decided by the
+        # * probability of truly travelled destinations and then smaller elements representing the prior probability
+        # * of target travel.
+        self._transition_matrix, target_prior = calculate_transition_probabilities(size=self.n_cities,
+                                                                                   source=X,
+                                                                                   target=y,
+                                                                                   return_destination_prior=True)
+        # Negative values, but keep order for sorting
+        target_prior = -(1 - target_prior)
+
+        # Swap all zero elements with the adjusted target prior
+        self._transition_matrix = np.where(self._transition_matrix == 0, target_prior,
+                                           self._transition_matrix).astype(np.float32)
 
         # Calculate prediction table, element[i, j] is the jth moth probable city to travel to from i
         # noinspection PyAttributeOutsideInit
-        self.prediction_table_ = np.argsort(-self._transition_matrix, axis=1)
+        self.prediction_table_ = np.argsort(-self._transition_matrix, axis=1).astype(np.int32)
 
         return self
 
