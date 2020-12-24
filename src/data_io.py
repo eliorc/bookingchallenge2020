@@ -1,5 +1,6 @@
 import warnings
 from pathlib import Path
+from typing import Tuple
 
 import pandas as pd
 
@@ -29,3 +30,25 @@ def load_raw_data(data_dir: Path = conf.DATA_DIR) -> pd.DataFrame:
                                                                           'utrip_id': 'str'},
                            parse_dates=['checkin', 'checkout'],
                            index_col=0)
+
+
+def separate_features_from_label(raw_data: pd.DataFrame) -> Tuple[pd.DataFrame, pd.DataFrame]:
+    """
+    Given data in raw data format, split into two separate dataframes - features and labels.
+    Features will include all the data as in the input data but will remove the last row of each trip.
+    Labels will include only the utrip_id and city_id of the last row of each trip.
+
+    :param raw_data: Data in raw format
+    :return: Features and labels
+    """
+
+    # Add feature for identifying feature and label rows
+    raw_data.loc[:, 'is_label'] = raw_data.groupby('utrip_id')['checkin'].transform('max')
+    raw_data.loc[:, 'is_label'] = raw_data['checkin'] == raw_data['is_label']
+
+    # Split into features and labels
+    label_mask = raw_data['is_label']
+    features = raw_data[~label_mask].drop(columns='is_label')
+    labels = raw_data[label_mask][['utrip_id', 'city_id']]
+
+    return features, labels
