@@ -133,20 +133,19 @@ def main():
     results = pd.DataFrame(results,
                            index=np.arange(ARGS.k_folds) + 1)
     results.index.name = "Fold"
-    true_ranks = pd.DataFrame(true_ranks)
 
     logger.report_table(title='Top K Accuracy Per Fold',
                         series=ARGS.model,
                         iteration=0,
                         table_plot=results)
-    logger.report_table(title='True Label Ranks',
-                        series=ARGS.model,
-                        iteration=0,
-                        table_plot=true_ranks)
     logger.report_scalar(title='Mean Top 4 Accuracy',
                          series=ARGS.model,
                          iteration=0,
                          value=results['top_4_acc'].mean())
+
+    true_ranks = pd.DataFrame(true_ranks)
+    task.upload_artifact(name='true_label_ranks',
+                         artifact_object=true_ranks)
 
 
 if __name__ == '__main__':
