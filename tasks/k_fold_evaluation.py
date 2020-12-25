@@ -64,11 +64,8 @@ def main():
     fitting_method = models_io.get_fitting_method(ARGS.model)
 
     # Load data
-    raw_data = data_io.load_raw_data(data_dir=root_data_dir)
+    raw_data = data_io.load_raw_data(data_dir=root_data_dir, trip_length_threshold=2)  # Filter trips with 1 destination
     assert np.all(raw_data['city_id'] >= 0)  # We are going to use the label -1 for unknown cities
-
-    # Discard trips with less than 2 destinations
-    raw_data = raw_data[raw_data.groupby('utrip_id')['user_id'].transform('count') >= 2]
 
     # Iterate over K folds
     all_trip_ids = raw_data.utrip_id.unique()

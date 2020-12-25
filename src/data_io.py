@@ -7,11 +7,12 @@ import pandas as pd
 import conf
 
 
-def load_raw_data(data_dir: Path = conf.DATA_DIR) -> pd.DataFrame:
+def load_raw_data(data_dir: Path = conf.DATA_DIR, trip_length_threshold: int = 0) -> pd.DataFrame:
     """
     Load training set as given by booking
 
     :param data_dir: Root data dir
+    :param trip_length_threshold: If supplied, will filter out trips that have less destinations than the threshold
     :return: Raw train set
     """
 
@@ -19,7 +20,8 @@ def load_raw_data(data_dir: Path = conf.DATA_DIR) -> pd.DataFrame:
     with warnings.catch_warnings():
         warnings.simplefilter(action='ignore', category=FutureWarning)
 
-        return pd.read_csv(data_dir / 'raw/booking_train_set.csv', dtype={'user_id': 'int32',
+        # Load data
+        data = pd.read_csv(data_dir / 'raw/booking_train_set.csv', dtype={'user_id': 'int32',
                                                                           # check(in|out) be parsed in parse_dates
                                                                           'checkin': 'str',
                                                                           'checkout': 'str',
@@ -30,6 +32,12 @@ def load_raw_data(data_dir: Path = conf.DATA_DIR) -> pd.DataFrame:
                                                                           'utrip_id': 'str'},
                            parse_dates=['checkin', 'checkout'],
                            index_col=0)
+
+        # Filter by threshold
+        if trip_length_threshold:
+            data = data[data.groupby('utrip_id')['user_id'].transform('count') >= trip_length_threshold]
+
+        return data
 
 
 def separate_features_from_label(raw_data: pd.DataFrame) -> Tuple[pd.DataFrame, pd.DataFrame]:
