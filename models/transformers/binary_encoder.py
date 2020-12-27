@@ -1,3 +1,5 @@
+from typing import Optional
+
 import numpy as np
 from sklearn.base import BaseEstimator, TransformerMixin
 
@@ -26,16 +28,16 @@ class BinaryEncoder(TransformerMixin, BaseEstimator):
          [1 0 0]]
     """
 
+    def __init__(self, maximum: Optional[int] = None):
+
+        self.maximum = maximum
+
     # noinspection PyUnusedLocal
     def fit(self, X, y=None):
 
-        # Input validation
-        if np.min(X) < 0:
-            raise ValueError('BinaryEncoder only accepts positive values')
-
         # Figure out the number of columns needed to represent all the numbers
         # noinspection PyAttributeOutsideInit
-        self.depth_ = self._get_depth(np.max(X))
+        self.depth_ = self._get_depth(self.maximum or np.max(X))  # Ignore np.max(X) if supplied in init
 
         # Get relevant indices for trimming all zero columns
         # noinspection PyAttributeOutsideInit

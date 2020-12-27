@@ -23,3 +23,19 @@ def test_encoder_output(inputs: np.ndarray, outputs: np.ndarray):
     transformed = binary_encoder.fit_transform(inputs)
 
     assert np.all(transformed == outputs)
+
+
+def test_encoder_output_with_init_max():
+    """
+    Check that binary encoder encodes as expected when given maximum in constructor
+    """
+
+    binary_encoder = BinaryEncoder(30_000)
+    inputs = np.array([30_000, 0, 5])
+    outputs = np.array([[1, 1, 1, 0, 1, 0, 1, 0, 0, 1, 1, 0, 0, 0, 0],
+                        [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+                        [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 1]])
+
+    transformed = binary_encoder.fit_transform(inputs)
+
+    assert np.all(transformed == outputs)
