@@ -164,12 +164,14 @@ class ModelingTable(TransformerMixin, BaseEstimator):
         return X
 
 
-def fit_pipeline(features: pd.DataFrame, labels: pd.DataFrame) -> Pipeline:
+# noinspection PyUnusedLocal
+def fit_pipeline(features: pd.DataFrame, labels: pd.DataFrame, **kwargs) -> Pipeline:
     """
     Create and fit pipeline
 
     :param features: Features, should include the entire raw data format, cities already encoded
     :param labels: Labels, should include only 'utrip_id' and 'city_id' columns with already encoded cities
+    :param kwargs: Support additional arguments for fitting
     :return: Fitted pipeline
     """
 
