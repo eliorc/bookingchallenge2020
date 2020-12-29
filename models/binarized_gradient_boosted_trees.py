@@ -1,7 +1,11 @@
+import pandas as pd
 from sklearn.base import TransformerMixin, BaseEstimator
+from sklearn.compose import ColumnTransformer
+from sklearn.pipeline import Pipeline
 from sklearn.preprocessing import LabelEncoder
 
 from models.trans_prob import fit_pipeline as fit_trans_prob_pipeline
+from models.transformers import BinaryEncoder
 
 
 class ModelingTable(TransformerMixin, BaseEstimator):
@@ -49,3 +53,45 @@ class ModelingTable(TransformerMixin, BaseEstimator):
         X = X.drop(columns=['checkin_first', 'checkout_last', 'utrip_id'])
 
         return X
+
+
+# noinspection PyUnusedLocal
+def fit_pipeline(features: pd.DataFrame, labels: pd.DataFrame, n_cities: int, **kwargs) -> Pipeline:
+    """
+    Create and fit pipeline
+
+    :param features: Features, should include the entire raw data format, cities already encoded
+    :param labels: Labels, should include only 'utrip_id' and 'city_id' columns with already encoded cities
+    :param n_cities: Number of unique cities in the features
+    :param kwargs: Support additional arguments for fitting
+    :return: Fitted pipeline
+    """
+
+    # Prerequisites
+    n_affiliates = features.affiliate_id.nunique() + 1  # +1 for unknown
+    n_booker_countries = features.booker_country.nunique()
+    n_hotel_countries = features.hotel_country.nunique()
+
+    # Build pipeline
+    pipeline = Pipeline([('modeling_table', ModelingTable()),
+                         ('binarize_features', ColumnTransformer([('binarizer',
+                                                                   BinaryEncoder(
+                                                                       [n_cities, n_cities, n_cities, n_cities,
+                                                                        n_cities, n_booker_countries, n_affiliates,
+                                                                        n_hotel_countries, n_hotel_countries],
+                                                                       [False, False, False, False, False, True, True,
+                                                                        True, True]),
+                                                                   ['city_id_first',
+                                                                    'city_id_last',
+                                                                    'most_probable_city_0',
+                                                                    'most_probable_city_1',
+                                                                    'most_probable_city_2',
+                                                                    'booker_country_last',
+                                                                    'affiliate_id_last',
+                                                                    'hotel_country_first',
+                                                                    'hotel_country_last'],
+                                                                   )], remainder='passthrough'))])
+    # Fit
+    pipeline.fit(features, labels['city_id'].values)
+
+    return pipeline
