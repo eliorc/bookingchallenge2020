@@ -100,7 +100,7 @@ def main():
         test_y.loc[:, 'city_id'] = city_encoder.transform(test_y['city_id'])
 
         # Train
-        model = fitting_method(features=train_x, labels=train_y)
+        model = fitting_method(features=train_x, labels=train_y, n_cities=len(city_encoder.classes_))
 
         # Evaluate Top N accuracy, N ∈ {1, 4, 10, 50}
         probabilities = model.predict_proba(test_x)

@@ -1,9 +1,12 @@
 from typing import Callable
 
+from models import binarized_gradient_boosted_trees
 from models import trans_prob
 
 _MODELS = {'trans_prob': trans_prob.fit_pipeline,
-           'benchmark': trans_prob.fit_pipeline}
+           'benchmark': trans_prob.fit_pipeline,
+           'binarized_gbt': binarized_gradient_boosted_trees.fit_pipeline}
+
 AVAILABLE_MODELS = set(_MODELS.keys())
 
 

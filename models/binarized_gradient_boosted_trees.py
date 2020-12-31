@@ -3,6 +3,7 @@ from sklearn.base import TransformerMixin, BaseEstimator
 from sklearn.compose import ColumnTransformer
 from sklearn.pipeline import Pipeline
 from sklearn.preprocessing import LabelEncoder
+from xgboost import XGBClassifier
 
 from models.trans_prob import fit_pipeline as fit_trans_prob_pipeline
 from models.transformers import BinaryEncoder, CyclicEncoder
@@ -108,8 +109,9 @@ def fit_pipeline(features: pd.DataFrame, labels: pd.DataFrame, n_cities: int, **
                                                                   ('cyclic_encoder',
                                                                    CyclicEncoder(maximum=[52, 52]),
                                                                    ['first_week_number', 'last_week_number'])],
-                                                                 remainder='passthrough'))])
+                                                                 remainder='drop')),
+                         ('xgboost', XGBClassifier())])
     # Fit
-    pipeline.fit(features, labels)
+    pipeline.fit(features, labels['city_id'].values)
 
     return pipeline
