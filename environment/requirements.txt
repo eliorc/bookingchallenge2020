@@ -8,4 +8,3 @@ jupyter_nbextensions_configurator
 scikit-learn
 pytest
 tensorflow
-xgboost
