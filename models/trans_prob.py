@@ -175,6 +175,11 @@ def fit_pipeline(features: pd.DataFrame, labels: pd.DataFrame, **kwargs) -> Pipe
     :return: Fitted pipeline
     """
 
+    # TODO - k_fold_evaluation was refactored, so now features' cities come unencoded.
+    #   ModelingTable should take that into consideration and encode the cities itself if intending to run this.
+    if features.city_id.max() > features['city_id'].nunique() + 1:
+        raise ValueError('features.city_id is not encoded!')
+
     # Build pipeline
     n_cities = features['city_id'].nunique() + 1  # +1 for unknown city
     pipeline = Pipeline([('modeling_table', ModelingTable()),

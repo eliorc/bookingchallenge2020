@@ -80,37 +80,23 @@ def main():
         train_x, train_y = data_io.separate_features_from_label(train)
         test_x, test_y = data_io.separate_features_from_label(test)
 
-        # Prepare city encoder
-        city_encoder = LabelEncoder().fit([-1] + train_x['city_id'].tolist())
-        assert city_encoder.classes_[0] == -1  # Make sure -1 is index 0
-
-        # Mark unknown destination cities with -1
-        known_cities = set(city_encoder.classes_)
-        train_y.loc[:, 'city_id'] = train_y['city_id'].apply(
-            lambda city_id: city_id if city_id in known_cities else -1)
-        test_x.loc[:, 'city_id'] = test_x['city_id'].apply(
-            lambda city_id: city_id if city_id in known_cities else -1)
-        test_y.loc[:, 'city_id'] = test_y['city_id'].apply(
-            lambda city_id: city_id if city_id in known_cities else -1)
+        # Label encoder
+        label_encoder = LabelEncoder().fit(train_y['city_id'].tolist() + test_y['city_id'].tolist())
 
         # Encode cities
-        train_x.loc[:, 'city_id'] = city_encoder.transform(train_x['city_id'])
-        train_y.loc[:, 'city_id'] = city_encoder.transform(train_y['city_id'])
-        test_x.loc[:, 'city_id'] = city_encoder.transform(test_x['city_id'])
-        test_y.loc[:, 'city_id'] = city_encoder.transform(test_y['city_id'])
+        train_y.loc[:, 'city_id'] = label_encoder.transform(train_y['city_id'])
+        test_y.loc[:, 'city_id'] = label_encoder.transform(test_y['city_id'])
 
         # Train
-        model = fitting_method(features=train_x, labels=train_y, n_cities=len(city_encoder.classes_))
+        model = fitting_method(features=train_x, labels=train_y)
 
         # Evaluate Top N accuracy, N ∈ {1, 4, 10, 50}
         probabilities = model.predict_proba(test_x)
         task.upload_artifact(name=f'predictions@kfold_{k_fold}',
                              artifact_object=probabilities,
                              metadata={'test_utrips': test_y['utrip_id'].tolist()})
-        y_true = tf.one_hot(test_y['city_id'].values, depth=len(city_encoder.classes_))
+        y_true = tf.one_hot(test_y['city_id'].values, depth=len(label_encoder.classes_))
         for n in [1, 4, 10, 50]:
-            model.steps[-1][-1].top_n = n
-
             # Evaluate
             top_n_accuracy = tf.keras.metrics.top_k_categorical_accuracy(y_true, probabilities, k=n).numpy().mean()
             results[f'top_{n}_acc'].append(top_n_accuracy)
