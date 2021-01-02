@@ -12,12 +12,15 @@ class CyclicEncoder(TransformerMixin, BaseEstimator):
     Splits each variable into two features which represent sine and cosine
     """
 
-    def __init__(self, maximum: Optional[List[int]] = None):
+    def __init__(self, minimum: Optional[List[int]] = None, maximum: Optional[List[int]] = None):
+        self.minimum = minimum
         self.maximum = maximum
 
     # noinspection PyUnusedLocal
     def fit(self, features, labels=None):
-        self.maximum = np.array(self.maximum) if self.maximum is not None else None
+        # Convert to numpy arrays
+        self.maximum = np.array(self.maximum) if self.maximum is not None else np.max(features, axis=0)
+        self.minimum = np.array(self.minimum) if self.minimum is not None else np.min(features, axis=0)
         return self
 
     def transform(self, features):
@@ -30,12 +33,9 @@ class CyclicEncoder(TransformerMixin, BaseEstimator):
         data = data.values if isinstance(data, pd.DataFrame) else data
         data = data.astype(float)
 
-        # Infer maximum if not given
-        if self.maximum is None:
-            self.maximum = np.max(data, axis=0)
-
         # Create as cosine/sine features
-        norm = (2 * np.pi * data) / self.maximum
+        # noinspection PyUnresolvedReferences
+        norm = (2 * np.pi * (data - self.minimum)) / (self.maximum - self.minimum)
         sin = np.sin(norm)
         cos = np.cos(norm)
 
