@@ -19,8 +19,8 @@ class CyclicEncoder(TransformerMixin, BaseEstimator):
     # noinspection PyUnusedLocal
     def fit(self, features, labels=None):
         # Convert to numpy arrays
-        self.maximum = np.array(self.maximum) if self.maximum is not None else np.max(features, axis=0)
-        self.minimum = np.array(self.minimum) if self.minimum is not None else np.min(features, axis=0)
+        self.maximum = np.array(self.maximum if self.maximum is not None else np.max(features, axis=0))
+        self.minimum = np.array(self.minimum if self.minimum is not None else np.min(features, axis=0))
         return self
 
     def transform(self, features):
