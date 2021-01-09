@@ -61,7 +61,7 @@ def main():
     logger = task.get_logger()
     results = defaultdict(list)
     true_ranks = defaultdict(list)
-    fitting_method = models_io.get_fitting_method(ARGS.model)
+    preprocess_pipeline, to_dataset, get_model = models_io.get_fitting_method(ARGS.model)
 
     # Load data
     raw_data = data_io.load_raw_data(data_dir=root_data_dir, trip_length_threshold=2)  # Filter trips with 1 destination
@@ -72,26 +72,70 @@ def main():
     shuffle(all_trip_ids)  # will reproduce because of explicit random seed settings
     for k_fold, test_trips in tqdm(enumerate(np.array_split(all_trip_ids, ARGS.k_folds)), desc=f'Folds',
                                    total=ARGS.k_folds):
-        # Split to train / test
-        train = raw_data[~raw_data.utrip_id.isin(test_trips)].copy()
+        # Split to train / validation / test
+        train_trips = set(all_trip_ids) - set(test_trips)
+        validation_trips = train_trips - set(
+            np.random.choice(list(train_trips), size=int(len(train_trips) * 0.15), replace=False))
+        assert not train_trips.intersection(test_trips, validation_trips)  # Make sure no leakage
+        train = raw_data[raw_data.utrip_id.isin(train_trips)].copy()
+        validation = raw_data[raw_data.utrip_id.isin(validation_trips)].copy()
         test = raw_data[raw_data.utrip_id.isin(test_trips)].copy()
 
         # Prepare X and y
         train_x, train_y = data_io.separate_features_from_label(train)
+        validation_x, validation_y = data_io.separate_features_from_label(validation)
         test_x, test_y = data_io.separate_features_from_label(test)
 
         # Label encoder
-        label_encoder = LabelEncoder().fit(train_y['city_id'].tolist() + test_y['city_id'].tolist())
+        label_encoder = LabelEncoder().fit(train_y['city_id'].tolist() +
+                                           test_y['city_id'].tolist() +
+                                           validation_y['city_id'].tolist())
 
         # Encode cities
         train_y.loc[:, 'city_id'] = label_encoder.transform(train_y['city_id'])
+        validation_y.loc[:, 'city_id'] = label_encoder.transform(validation_y['city_id'])
         test_y.loc[:, 'city_id'] = label_encoder.transform(test_y['city_id'])
 
-        # Train
-        model = fitting_method(features=train_x, labels=train_y)
+        # Prepare preprocess pipeline
+        print('Fitting preprocess pipeline...')
+        pp_pipeline = preprocess_pipeline(features=train_x, labels=train_y)
+
+        # Transform features
+        print('Transforming features...')
+        train_x_processed = pp_pipeline.transform(train_x)
+        validation_x_processed = pp_pipeline.transform(validation_x)
+        test_x_processed = pp_pipeline.transform(test_x)
+
+        # Prepare dataset objects
+        train_dataset = to_dataset(train_x_processed, train_y, batch_size=256, pre_shuffle=True)
+        validation_dataset = to_dataset(validation_x_processed, validation_y, batch_size=500, pre_shuffle=False)
+        test_dataset = to_dataset(test_x_processed, test_y, batch_size=500, pre_shuffle=False)
+
+        # Create model
+        most_probable_cities_keys = [k for k in train_x_processed.columns if k.endswith('most_probable_city_id')]
+        n_cities = len(pp_pipeline['encode'].transformers_[0][1].categories_[0]) + 1  # Plus 1 for unknown
+        n_target_cities = max(len(pp_pipeline['encode'].transformers_[0][1].categories_[n]) for n in
+                              range(5, 5 + len(most_probable_cities_keys)))
+        n_devices = len(pp_pipeline['encode'].transformers_[0][1].categories_[1])
+        n_affiliates = len(pp_pipeline['encode'].transformers_[0][1].categories_[2]) + 1
+        n_booker_countries = len(pp_pipeline['encode'].transformers_[0][1].categories_[3])
+        n_hotel_countries = len(pp_pipeline['encode'].transformers_[0][1].categories_[4]) + 1
+        n_labels = len(label_encoder.classes_)
+        model = get_model(n_cities=n_cities,
+                          n_target_cities=n_target_cities,
+                          n_devices=n_devices,
+                          n_affiliates=n_affiliates,
+                          n_booker_countries=n_booker_countries,
+                          n_hotel_countries=n_hotel_countries,
+                          n_labels=n_labels,
+                          most_probable_cities_keys=most_probable_cities_keys)
+        model.fit(train_dataset,
+                  callbacks=[tf.keras.callbacks.EarlyStopping(patience=3,
+                                                              monitor='top_k_categorical_accuracy')],
+                  validation_data=validation_dataset)
 
         # Evaluate Top N accuracy, N ∈ {1, 4, 10, 50}
-        probabilities = model.predict_proba(test_x)
+        probabilities = model.predict(test_x)
         task.upload_artifact(name=f'predictions@kfold_{k_fold}',
                              artifact_object=probabilities,
                              metadata={'test_utrips': test_y['utrip_id'].tolist()})
