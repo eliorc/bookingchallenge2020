@@ -93,7 +93,9 @@ class VanillaLSTM(tf.keras.Model):
         self.lstm = tf.keras.layers.LSTM(units=lstm_units)
 
         # Post fully connected
-        self.fc1 = tf.keras.layers.Dense(units=fc_1_units, activation='relu')
+        fc1_input_dim = lstm_units + booker_country_embedding_dim + int(
+            target_city_embedding_dim * len(most_probable_cities_keys))
+        self.fc1 = tf.keras.layers.Dense(units=fc_1_units, input_dim=fc1_input_dim, activation='relu')
 
         # Output layer
         self.out = tf.keras.layers.Dense(units=n_labels, activation='softmax')
