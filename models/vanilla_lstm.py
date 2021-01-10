@@ -1,7 +1,8 @@
 from collections import Counter, defaultdict
-from typing import Dict, List
 from random import shuffle
+from typing import Dict, List
 
+import numpy as np
 import pandas as pd
 import tensorflow as tf
 from sklearn.base import TransformerMixin, BaseEstimator
@@ -95,7 +96,8 @@ class VanillaLSTM(tf.keras.Model):
         # Post fully connected
         fc1_input_dim = lstm_units + booker_country_embedding_dim + int(
             target_city_embedding_dim * len(most_probable_cities_keys))
-        self.fc1 = tf.keras.layers.Dense(units=fc_1_units, input_dim=fc1_input_dim, activation='relu')
+        self.fc1 = tf.keras.layers.Dense(units=fc_1_units, activation='relu')
+        self.fc1.build(input_shape=tf.TensorShape([None, fc1_input_dim]))
 
         # Output layer
         self.out = tf.keras.layers.Dense(units=n_labels, activation='softmax')
@@ -341,9 +343,9 @@ def processed_to_dataset(features: pd.DataFrame,
             for k, v in sample.items():
                 # Flat values
                 if k.endswith('most_probable_city_id') or k == 'booker_country':
-                    sample_features[k] = v[-1]
+                    sample_features[k] = np.array(v[-1])
                 else:
-                    sample_features[k] = v
+                    sample_features[k] = np.array(v)
 
             yield sample_features, y[-1]
 

@@ -135,7 +135,7 @@ def main():
                   validation_data=validation_dataset)
 
         # Evaluate Top N accuracy, N ∈ {1, 4, 10, 50}
-        probabilities = model.predict(test_x)
+        probabilities = model.predict(test_dataset)
         task.upload_artifact(name=f'predictions@kfold_{k_fold}',
                              artifact_object=probabilities,
                              metadata={'test_utrips': test_y['utrip_id'].tolist()})
