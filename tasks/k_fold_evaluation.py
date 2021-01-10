@@ -131,7 +131,7 @@ def main():
                           most_probable_cities_keys=most_probable_cities_keys)
         model.fit(train_dataset,
                   callbacks=[tf.keras.callbacks.EarlyStopping(patience=3,
-                                                              monitor='val_top_k_categorical_accuracy')],
+                                                              monitor='val_sparse_top_k_categorical_accuracy')],
                   validation_data=validation_dataset,
                   epochs=100)
 

@@ -410,6 +410,6 @@ def get_model(**model_init_kwargs) -> tf.keras.Model:
     # Compile
     model.compile(optimizer=tf.keras.optimizers.Adam(),
                   loss=tf.keras.losses.SparseCategoricalCrossentropy(),
-                  metrics=[tf.keras.metrics.TopKCategoricalAccuracy(k=4)])
+                  metrics=[tf.keras.metrics.SparseTopKCategoricalAccuracy(k=4)])
 
     return model
