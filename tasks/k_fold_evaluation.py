@@ -132,7 +132,8 @@ def main():
         model.fit(train_dataset,
                   callbacks=[tf.keras.callbacks.EarlyStopping(patience=3,
                                                               monitor='top_k_categorical_accuracy')],
-                  validation_data=validation_dataset)
+                  validation_data=validation_dataset,
+                  epochs=100)
 
         # Evaluate Top N accuracy, N ∈ {1, 4, 10, 50}
         probabilities = model.predict(test_dataset)
