@@ -130,7 +130,7 @@ class VanillaLSTM(tf.keras.Model):
 
         # Concat the non temporal features
         x = tf.concat([x, booker_country] +
-                      most_probable_target_cities, axis=-1)  # (batch_size, lstm_units+emb_dim_tc+emb_dim_bc)
+                      most_probable_target_cities, axis=1)  # (batch_size, lstm_units+emb_dim_tc+emb_dim_bc)
 
         # Fully connected
         x = self.fc1(x)  # (batch_size, fc1_units)
@@ -389,7 +389,7 @@ def processed_to_dataset(features: pd.DataFrame,
     # Batch and pad
     dataset = dataset.padded_batch(batch_size=batch_size,
                                    padding_values=(padding_values, 0),
-                                   padded_shapes=(padded_shapes, []))
+                                   padded_shapes=(padded_shapes, [])).prefetch(1)
     return dataset
 
 
