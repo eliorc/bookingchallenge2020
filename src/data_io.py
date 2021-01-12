@@ -37,7 +37,39 @@ def load_raw_data(data_dir: Path = conf.DATA_DIR, trip_length_threshold: int = 0
         if trip_length_threshold:
             data = data[data.groupby('utrip_id')['user_id'].transform('count') >= trip_length_threshold]
 
+        # Sort by time
+        data = data.sort_values(by=['utrip_id', 'checkin'])
+
         return data
+
+
+def load_raw_test(data_dir: Path = conf.DATA_DIR) -> pd.DataFrame:
+    """
+    Load test set as given by booking
+
+    :param data_dir: Root data dir
+    :return: Raw test set
+    """
+    with warnings.catch_warnings():
+        warnings.simplefilter(action='ignore', category=FutureWarning)
+
+        # Load data
+        data = pd.read_csv(data_dir / 'raw/booking_test_set.csv', dtype={'user_id': 'int32',
+                                                                         # check(in|out) be parsed in parse_dates
+                                                                         'checkin': 'str',
+                                                                         'checkout': 'str',
+                                                                         'city_id': 'int32',
+                                                                         'affiliate_id': 'int32',
+                                                                         'booker_country': 'str',
+                                                                         'hotel_country': 'str',
+                                                                         'utrip_id': 'str'},
+                           parse_dates=['checkin', 'checkout'],
+                           index_col=0)
+
+        # Sort by time
+        data = data.sort_values(by=['utrip_id', 'checkin'])
+
+    return data
 
 
 def separate_features_from_label(raw_data: pd.DataFrame) -> Tuple[pd.DataFrame, pd.DataFrame]:
