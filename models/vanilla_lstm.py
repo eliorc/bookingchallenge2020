@@ -32,6 +32,7 @@ class VanillaLSTM(tf.keras.Model):
                  hotel_country_embedding_dim: int = 6,
                  pre_lstm_projection_units: int = 48,
                  lstm_units: int = 48,
+                 bottleneck_units: int = 12,
                  fc_1_units: int = 48,
                  name: str = 'vanilla_lstm',
                  **kwargs):
@@ -54,6 +55,7 @@ class VanillaLSTM(tf.keras.Model):
         self.hotel_country_embedding_dim = hotel_country_embedding_dim
         self.pre_lstm_projection_units = pre_lstm_projection_units
         self.lstm_units = lstm_units
+        self.bottleneck_units = bottleneck_units
         self.fc_1_units = fc_1_units
 
         # Embedding matrices
@@ -99,6 +101,9 @@ class VanillaLSTM(tf.keras.Model):
         self.fc1 = tf.keras.layers.Dense(units=fc_1_units, activation='relu')
         self.fc1.build(input_shape=tf.TensorShape([None, fc1_input_dim]))
 
+        # Bottleneck
+        self.bottleneck = tf.keras.layers.Dense(units=bottleneck_units, activation='relu')
+
         # Output layer
         self.out = tf.keras.layers.Dense(units=n_labels, activation='softmax')
 
@@ -138,6 +143,9 @@ class VanillaLSTM(tf.keras.Model):
 
         # Fully connected
         x = self.fc1(x)  # (batch_size, fc1_units)
+
+        # Bottleneck
+        x = self.bottleneck(x)  # (batch_size, bottleneck_units)
 
         # Output
         x = self.out(x)  # (batch_size, n_labels)
