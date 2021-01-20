@@ -158,7 +158,7 @@ class VanillaLSTM(tf.keras.Model):
         x = self.lstm(x, mask=mask)  # (batch_size, lstm_units)
 
         # Batch norm
-        x = self.batch_norm1(x)  # (batch_size, fc1_units)
+        x = self.batch_norm1(x, training=training)  # (batch_size, fc1_units)
 
         # Concat the non temporal features
         x = tf.concat([x, booker_country] +
@@ -171,7 +171,7 @@ class VanillaLSTM(tf.keras.Model):
         x = self.bottleneck(x)  # (batch_size, bottleneck_units)
 
         # Batch norm
-        x = self.batch_norm2(x)  # (batch_size, bottleneck_units)
+        x = self.batch_norm2(x, training=training)  # (batch_size, bottleneck_units)
 
         # Output
         x = self.out(x)  # (batch_size, n_labels)
