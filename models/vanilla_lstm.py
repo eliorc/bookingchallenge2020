@@ -31,6 +31,7 @@ class VanillaLSTM(tf.keras.Model):
                  booker_country_embedding_dim: int = 2,
                  hotel_country_embedding_dim: int = 6,
                  pre_lstm_projection_units: int = 48,
+                 embedding_dropout_rate: float = 0.2,
                  lstm_units: int = 48,
                  bottleneck_units: int = 12,
                  fc_1_units: int = 48,
@@ -53,6 +54,7 @@ class VanillaLSTM(tf.keras.Model):
         self.affiliate_embedding_dim = affiliate_embedding_dim
         self.booker_country_embedding_dim = booker_country_embedding_dim
         self.hotel_country_embedding_dim = hotel_country_embedding_dim
+        self.embedding_dropout_rate = embedding_dropout_rate
         self.pre_lstm_projection_units = pre_lstm_projection_units
         self.lstm_units = lstm_units
         self.bottleneck_units = bottleneck_units
@@ -63,6 +65,8 @@ class VanillaLSTM(tf.keras.Model):
                                                          output_dim=city_embedding_dim,
                                                          mask_zero=True,
                                                          name='city_embeddings')
+        self.city_emb_dropout = tf.keras.layers.SpatialDropout1D(rate=embedding_dropout_rate,
+                                                                 name='city_embeddings_dropout')
 
         self.target_city_embeddings = tf.keras.layers.Embedding(input_dim=n_target_cities,
                                                                 output_dim=target_city_embedding_dim,
@@ -73,11 +77,15 @@ class VanillaLSTM(tf.keras.Model):
                                                            output_dim=device_embedding_dim,
                                                            mask_zero=False,
                                                            name='device_embeddings')
+        self.device_emb_dropout = tf.keras.layers.SpatialDropout1D(rate=embedding_dropout_rate,
+                                                                   name='device_embeddings_dropout')
 
         self.affiliate_embeddings = tf.keras.layers.Embedding(input_dim=n_affiliates,
                                                               output_dim=affiliate_embedding_dim,
                                                               mask_zero=True,
                                                               name='affiliate_embeddings')
+        self.affiliate_emb_dropout = tf.keras.layers.SpatialDropout1D(rate=embedding_dropout_rate,
+                                                                      name='affiliate_embeddings_dropout')
 
         self.booker_country_embeddings = tf.keras.layers.Embedding(input_dim=n_booker_countries,
                                                                    output_dim=booker_country_embedding_dim,
@@ -88,6 +96,8 @@ class VanillaLSTM(tf.keras.Model):
                                                                   output_dim=hotel_country_embedding_dim,
                                                                   mask_zero=True,
                                                                   name='hotel_country_embeddings')
+        self.hotel_country_emb_dropout = tf.keras.layers.SpatialDropout1D(rate=embedding_dropout_rate,
+                                                                          name='hotel_country_embeddings_dropout')
 
         # Projection, to project embeddings from different spaces to a singular one
         self.pre_lstm_projection = tf.keras.layers.Dense(units=pre_lstm_projection_units, activation=None)
@@ -113,10 +123,14 @@ class VanillaLSTM(tf.keras.Model):
 
         # Embed categorical variables
         embedded = list()  # list of (batch_size, max_seq_len, emb_dim), emb_dim different for each
-        embedded.append(self.city_embeddings(inputs['city_id_x']))
-        embedded.append(self.device_embeddings(inputs['device_class']))
-        embedded.append(self.affiliate_embeddings(inputs['affiliate_id']))
-        embedded.append(self.hotel_country_embeddings(inputs['hotel_country']))
+        embedded.append(self.city_emb_dropout(
+            self.city_embeddings(inputs['city_id_x']), training=training))
+        embedded.append(self.device_emb_dropout(
+            self.device_embeddings(inputs['device_class']), training=training))
+        embedded.append(self.affiliate_emb_dropout(
+            self.affiliate_embeddings(inputs['affiliate_id']), training=training))
+        embedded.append(self.hotel_country_emb_dropout(
+            self.hotel_country_embeddings(inputs['hotel_country']), training=training))
         most_probable_target_cities = [tf.squeeze(self.target_city_embeddings(inputs[key]))
                                        for key in self.most_probable_cities_keys]  # (batch_size, emb_dim_tc)
         booker_country = tf.squeeze(self.booker_country_embeddings(
@@ -153,24 +167,7 @@ class VanillaLSTM(tf.keras.Model):
         return x
 
     def get_config(self):
-        return {
-            'n_cities': self.n_cities,
-            'n_target_cities': self.n_target_cities,
-            'n_devices': self.n_devices,
-            'n_affiliates': self.n_affiliates,
-            'n_booker_countries': self.n_booker_countries,
-            'n_hotel_countries': self.n_hotel_countries,
-            'n_labels': self.n_labels,
-            'most_probable_cities_keys': self.most_probable_cities_keys,
-            'city_embedding_dim': self.city_embedding_dim,
-            'target_city_embedding_dim': self.target_city_embedding_dim,
-            'device_embedding_dim': self.device_embedding_dim,
-            'affiliate_embedding_dim': self.affiliate_embedding_dim,
-            'booker_country_embedding_dim': self.booker_country_embedding_dim,
-            'hotel_country_embedding_dim': self.hotel_country_embedding_dim,
-            'pre_lstm_projection_units': self.pre_lstm_projection_units,
-            'lstm_units': self.lstm_units,
-            'fc_1_units': self.fc_1_units}
+        raise DeprecationWarning('Serialization should be updated if needed')
 
 
 class ModelingTable(TransformerMixin, BaseEstimator):
