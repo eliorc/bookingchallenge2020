@@ -105,17 +105,20 @@ class VanillaLSTM(tf.keras.Model):
         # LSTM
         self.lstm = tf.keras.layers.LSTM(units=lstm_units)
 
-        # Post fully connected
-        fc1_input_dim = lstm_units + booker_country_embedding_dim + int(
-            target_city_embedding_dim * len(most_probable_cities_keys))
-        self.fc1 = tf.keras.layers.Dense(units=fc_1_units, activation='relu')
-        self.fc1.build(input_shape=tf.TensorShape([None, fc1_input_dim]))
-
         # Batch norm
         self.batch_norm1 = tf.keras.layers.BatchNormalization()
 
+        # Post fully connected
+        fc1_input_dim = lstm_units + booker_country_embedding_dim + int(
+            target_city_embedding_dim * len(most_probable_cities_keys))
+        self.fc1 = tf.keras.layers.Dense(units=fc_1_units, activation=None)
+        self.fc1.build(input_shape=tf.TensorShape([None, fc1_input_dim]))
+
         # Bottleneck
         self.bottleneck = tf.keras.layers.Dense(units=bottleneck_units, activation='relu')
+
+        # Batch norm
+        self.batch_norm2 = tf.keras.layers.BatchNormalization()
 
         # Output layer
         self.out = tf.keras.layers.Dense(units=n_labels, activation='softmax')
@@ -154,6 +157,9 @@ class VanillaLSTM(tf.keras.Model):
         # LSTM
         x = self.lstm(x, mask=mask)  # (batch_size, lstm_units)
 
+        # Batch norm
+        x = self.batch_norm1(x)  # (batch_size, fc1_units)
+
         # Concat the non temporal features
         x = tf.concat([x, booker_country] +
                       most_probable_target_cities, axis=1)  # (batch_size, lstm_units+emb_dim_tc+emb_dim_bc)
@@ -161,11 +167,11 @@ class VanillaLSTM(tf.keras.Model):
         # Fully connected
         x = self.fc1(x)  # (batch_size, fc1_units)
 
-        # Batch norm
-        x = self.batch_norm1(x)  # (batch_size, fc1_units)
-
         # Bottleneck
         x = self.bottleneck(x)  # (batch_size, bottleneck_units)
+
+        # Batch norm
+        x = self.batch_norm2(x)  # (batch_size, bottleneck_units)
 
         # Output
         x = self.out(x)  # (batch_size, n_labels)
