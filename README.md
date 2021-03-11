@@ -1,3 +1,8 @@
+# About repo
+
+Repo of the Booking Challenge WDSM 2021 challenge, this repo was never submitted and never completed so this is not a working solution :).
+This repo is public to share the style I like to keep when organizing data science projects when collaborating.
+
 # Contents
 
  - `data` - Data used in the project
@@ -12,7 +17,7 @@
 
 Taken from the original site
 
-## ABOUT
+## ABOUT 
 
 Booking.com’s mission is to make it easier for everyone to experience the world. By investing in the technology that
 helps take the friction out of travel, Booking.com seamlessly connects millions of travellers with memorable
